@@ -114,15 +114,15 @@
             </td>
 
             <td class="p-3">
-              $ {{ formatearMoneda(c.totalPagado) }}
+               {{ formatearMoneda(c.totalPagado) }}
             </td>
 
             <td class="p-3">
-              $ {{ formatearMoneda(c.costoUnitario) }}
+               {{ formatearMoneda(c.costoUnitario) }}
             </td>
 
             <td class="p-3 font-semibold text-green-600">
-              $ {{ formatearMoneda(c.precioSugerido) }}
+               {{ formatearMoneda(c.precioSugerido) }}
             </td>
 
             <td class="p-3">
