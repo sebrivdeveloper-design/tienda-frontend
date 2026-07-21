@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL =
-  " https://tienda-backend-ud29.onrender.com/ingresos";
+  "https://tienda-backend-ud29.onrender.com/ingresos";
 
 export const registrarIngreso = async (valor) => {
   const response = await axios.post(
