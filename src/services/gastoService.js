@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL =
-  "https://tienda-backend-production-f8dc.up.railway.app/gastos";
+  " https://tienda-backend-ud29.onrender.com/gastos";
 
 export const listarGastos = async () => {
   const response = await axios.get(API_URL);
