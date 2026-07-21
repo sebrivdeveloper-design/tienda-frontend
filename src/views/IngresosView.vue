@@ -11,20 +11,34 @@
       <form
         @submit.prevent="guardarIngreso"
         class="grid grid-cols-1 md:grid-cols-2 gap-4"
+        novalidate
       >
 
-        <input
-          v-model="valorIngreso"
-          type="number"
-          placeholder="Total ingresos del día"
-          class="border p-3 rounded"
-        />
+        <div>
+
+          <input
+            v-model="valorIngreso"
+            :disabled="guardando"
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="Total ingresos del día"
+            class="border p-3 rounded w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
+            :class="errorValidacion ? 'border-red-500' : ''"
+          />
+
+          <p v-if="errorValidacion" class="text-red-500 text-sm mt-1">
+            {{ errorValidacion }}
+          </p>
+
+        </div>
 
         <button
           type="submit"
-          class="bg-blue-600 text-white rounded px-4 py-3 hover:bg-blue-700"
+          :disabled="guardando"
+          class="bg-blue-600 text-white rounded px-4 py-3 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition"
         >
-          Registrar
+          {{ guardando ? "Guardando..." : "Registrar" }}
         </button>
 
       </form>
@@ -33,9 +47,17 @@
 
     <div class="bg-white p-6 rounded-lg shadow overflow-x-auto">
 
-      <h2 class="text-2xl font-bold mb-4">
-        Historial de ingresos
-      </h2>
+      <div class="flex justify-between items-center mb-4">
+
+        <h2 class="text-2xl font-bold">
+          Historial de ingresos
+        </h2>
+
+        <span v-if="cargando" class="text-sm text-gray-400">
+          Cargando ingresos...
+        </span>
+
+      </div>
 
       <table class="w-full border-collapse">
 
@@ -73,6 +95,14 @@
 
           </tr>
 
+          <tr v-if="!cargando && ingresos.length === 0">
+
+            <td colspan="2" class="p-3 text-center text-gray-400">
+              No hay ingresos registrados todavía.
+            </td>
+
+          </tr>
+
         </tbody>
 
       </table>
@@ -92,22 +122,85 @@ import {
   listarIngresos
 } from "../services/ingresoService";
 
+import { useToast } from "../composables/useToast";
+import { obtenerMensajeError } from "../utils/apiError";
+import { esNumeroPositivo } from "../utils/validators";
+
+const toast = useToast();
+
 const ingresos = ref([]);
 
 const valorIngreso = ref(null);
 
+const errorValidacion = ref("");
+
+const cargando = ref(false);
+const guardando = ref(false);
+
+const validarIngreso = () => {
+
+  if (!esNumeroPositivo(valorIngreso.value)) {
+    errorValidacion.value = "Ingresa un valor numérico mayor a 0.";
+    return false;
+  }
+
+  errorValidacion.value = "";
+  return true;
+};
+
 const cargarIngresos = async () => {
 
-  ingresos.value = await listarIngresos();
+  cargando.value = true;
+
+  try {
+
+    ingresos.value = await listarIngresos();
+
+  } catch (error) {
+
+    console.error("Error al cargar ingresos:", error);
+
+    toast.error(
+      obtenerMensajeError(error, "No se pudieron cargar los ingresos.")
+    );
+
+  } finally {
+
+    cargando.value = false;
+  }
 };
 
 const guardarIngreso = async () => {
 
-  await registrarIngreso(valorIngreso.value);
+  if (guardando.value) return;
 
-  valorIngreso.value = null;
+  if (!validarIngreso()) return;
 
-  cargarIngresos();
+  guardando.value = true;
+
+  try {
+
+    await registrarIngreso(valorIngreso.value);
+
+    valorIngreso.value = null;
+    errorValidacion.value = "";
+
+    toast.exito("Ingreso registrado correctamente.");
+
+    await cargarIngresos();
+
+  } catch (error) {
+
+    console.error("Error al registrar el ingreso:", error);
+
+    toast.error(
+      obtenerMensajeError(error, "No se pudo registrar el ingreso.")
+    );
+
+  } finally {
+
+    guardando.value = false;
+  }
 };
 
 onMounted(() => {

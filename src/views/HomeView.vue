@@ -18,17 +18,28 @@
 
       <div class="flex flex-col md:flex-row gap-4 items-start md:items-center">
 
-        <input
-          v-model="fecha"
-          type="date"
-          class="border p-3 rounded"
-        />
+        <div>
+
+          <input
+            v-model="fecha"
+            :disabled="cargando"
+            type="date"
+            class="border p-3 rounded disabled:bg-gray-100 disabled:cursor-not-allowed"
+            :class="errorValidacion ? 'border-red-500' : ''"
+          />
+
+          <p v-if="errorValidacion" class="text-red-500 text-sm mt-1">
+            {{ errorValidacion }}
+          </p>
+
+        </div>
 
         <button
           @click="cargarBalance"
-          class="bg-blue-600 text-white px-5 py-3 rounded hover:bg-blue-700"
+          :disabled="cargando"
+          class="bg-blue-600 text-white px-5 py-3 rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition"
         >
-          Consultar
+          {{ cargando ? "Consultando..." : "Consultar" }}
         </button>
 
       </div>
@@ -92,7 +103,6 @@
         >
           $ {{ balance.balance }}
         </h2>
-        
 
       </div>
 
@@ -124,17 +134,52 @@ import {
   obtenerBalance
 } from "../services/balanceService";
 
+import { useToast } from "../composables/useToast";
+import { obtenerMensajeError } from "../utils/apiError";
+import { esVacio } from "../utils/validators";
+
+const toast = useToast();
+
 const fecha = ref(
   new Date().toISOString().split("T")[0]
 );
 
 const balance = ref(null);
 
+const errorValidacion = ref("");
+
+const cargando = ref(false);
+
 const cargarBalance = async () => {
 
-  balance.value = await obtenerBalance(
-    fecha.value
-  );
+  if (cargando.value) return;
+
+  if (esVacio(fecha.value)) {
+    errorValidacion.value = "Selecciona una fecha para consultar.";
+    return;
+  }
+
+  errorValidacion.value = "";
+  cargando.value = true;
+
+  try {
+
+    balance.value = await obtenerBalance(fecha.value);
+
+  } catch (error) {
+
+    console.error("Error al obtener el balance del dashboard:", error);
+
+    balance.value = null;
+
+    toast.error(
+      obtenerMensajeError(error, "No se pudo cargar el resumen financiero.")
+    );
+
+  } finally {
+
+    cargando.value = false;
+  }
 };
 
 onMounted(() => {
