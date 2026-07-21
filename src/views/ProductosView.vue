@@ -160,12 +160,25 @@ const productoVacio = () => ({
   porcentajeGanancia: 0
 });
 
+// Un producto puede comprarse muchas veces (eso vive en el historial
+// de compras), pero no puede existir registrado más de una vez.
+const existeProductoConNombre = (nombre) => {
+
+  const nombreNormalizado = nombre.trim().toLowerCase();
+
+  return productos.value.some(
+    (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+  );
+};
+
 const validarProducto = () => {
 
   const nuevosErrores = {};
 
   if (esVacio(producto.value.nombre)) {
     nuevosErrores.nombre = "El nombre del producto es obligatorio.";
+  } else if (existeProductoConNombre(producto.value.nombre)) {
+    nuevosErrores.nombre = "Ya existe un producto registrado con ese nombre.";
   }
 
   if (!esNumeroNoNegativo(producto.value.porcentajeGanancia)) {
