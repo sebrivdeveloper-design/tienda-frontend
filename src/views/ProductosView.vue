@@ -30,13 +30,27 @@
 
         </div>
 
-        <button
-          type="submit"
-          :disabled="guardando"
-          class="bg-blue-600 text-white rounded px-4 py-3 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition"
-        >
-          {{ guardando ? "Guardando..." : "Guardar" }}
-        </button>
+        <div class="flex gap-3">
+
+          <button
+            type="submit"
+            :disabled="guardando"
+            class="bg-blue-600 text-white rounded px-4 py-3 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition flex-1"
+          >
+            {{ textoBotonGuardar }}
+          </button>
+
+          <button
+            v-if="modoEdicion"
+            type="button"
+            :disabled="guardando"
+            @click="cancelarEdicion"
+            class="bg-gray-200 text-gray-700 rounded px-4 py-3 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            Cancelar
+          </button>
+
+        </div>
 
       </form>
 
@@ -76,6 +90,10 @@
               % Ganancia
             </th>
 
+            <th class="p-3">
+              Acciones
+            </th>
+
           </tr>
 
         </thead>
@@ -96,11 +114,24 @@
               {{ p.porcentajeGanancia }}%
             </td>
 
+            <td class="p-3">
+
+              <button
+                type="button"
+                :disabled="guardando"
+                @click="editarProducto(p)"
+                class="text-blue-600 hover:underline text-sm font-medium disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+              >
+                Editar
+              </button>
+
+            </td>
+
           </tr>
 
           <tr v-if="!cargando && productosFiltrados.length === 0">
 
-            <td colspan="2" class="p-3 text-center text-gray-400">
+            <td colspan="3" class="p-3 text-center text-gray-400">
               {{
                 busqueda.trim()
                   ? "No se encontraron productos que coincidan con la búsqueda."
@@ -126,7 +157,8 @@ import { ref, computed, onMounted } from "vue";
 
 import {
   listarProductos,
-  crearProducto
+  crearProducto,
+  actualizarProducto
 } from "../services/productoService";
 
 import { useToast } from "../composables/useToast";
@@ -148,15 +180,31 @@ const errores = ref({});
 const cargando = ref(false);
 const guardando = ref(false);
 
+// Estado del modo edición: mientras `productoEnEdicion` sea distinto de
+// null, el formulario actúa como "editar" en vez de "crear". Guardamos
+// también el porcentaje de ganancia original del producto para poder
+// conservarlo tal cual al actualizar (el usuario solo puede tocar el
+// nombre; el 25% sigue siendo fijo y no editable desde la UI).
+const productoEnEdicion = ref(null);
+
+const modoEdicion = computed(() => productoEnEdicion.value !== null);
+
+const textoBotonGuardar = computed(() => {
+
+  if (guardando.value) {
+    return modoEdicion.value ? "Actualizando..." : "Guardando...";
+  }
+
+  return modoEdicion.value ? "Actualizar" : "Guardar";
+});
+
 const productoVacio = () => ({
   nombre: ""
 });
 
-// Objetivo 2: se ordenan alfabéticamente en un computed, derivado
-// siempre de la lista cruda. Así el orden se mantiene automáticamente
-// sin importar en qué orden responda el backend, ya sea al cargar la
-// página, después de crear un producto o si en el futuro se agrega
-// edición: cualquier cambio en `productos` se reordena solo.
+// Objetivo 2 (mejora anterior): se ordenan alfabéticamente en un
+// computed, derivado siempre de la lista cruda. El orden se mantiene
+// automáticamente al cargar, crear o actualizar.
 const productosOrdenados = computed(() => {
 
   return [...productos.value].sort((a, b) =>
@@ -164,9 +212,6 @@ const productosOrdenados = computed(() => {
   );
 });
 
-// Objetivo 1: filtrado en tiempo real por nombre, sin distinguir
-// mayúsculas/minúsculas, sobre la lista ya ordenada. Si la búsqueda
-// está vacía, se muestran todos los productos.
 const productosFiltrados = computed(() => {
 
   const termino = busqueda.value.trim().toLowerCase();
@@ -180,22 +225,28 @@ const productosFiltrados = computed(() => {
 
 // Un producto puede comprarse muchas veces (eso vive en el historial
 // de compras), pero no puede existir registrado más de una vez.
-const existeProductoConNombre = (nombre) => {
+// Al editar, se excluye el propio producto de la comparación: de lo
+// contrario, "guardar" un producto sin cambiar su nombre marcaría
+// error de duplicado contra sí mismo.
+const existeProductoConNombre = (nombre, idAExcluir = null) => {
 
   const nombreNormalizado = nombre.trim().toLowerCase();
 
   return productos.value.some(
-    (p) => p.nombre.trim().toLowerCase() === nombreNormalizado
+    (p) =>
+      p.id !== idAExcluir &&
+      p.nombre.trim().toLowerCase() === nombreNormalizado
   );
 };
 
 const validarProducto = () => {
 
   const nuevosErrores = {};
+  const idAExcluir = modoEdicion.value ? productoEnEdicion.value.id : null;
 
   if (esVacio(producto.value.nombre)) {
     nuevosErrores.nombre = "El nombre del producto es obligatorio.";
-  } else if (existeProductoConNombre(producto.value.nombre)) {
+  } else if (existeProductoConNombre(producto.value.nombre, idAExcluir)) {
     nuevosErrores.nombre = "Ya existe un producto registrado con ese nombre.";
   }
 
@@ -226,6 +277,50 @@ const cargarProductos = async () => {
   }
 };
 
+const editarProducto = (p) => {
+
+  if (guardando.value) return;
+
+  productoEnEdicion.value = {
+    id: p.id,
+    porcentajeGanancia: p.porcentajeGanancia
+  };
+
+  producto.value = { nombre: p.nombre };
+  errores.value = {};
+};
+
+const cancelarEdicion = () => {
+
+  if (guardando.value) return;
+
+  productoEnEdicion.value = null;
+  producto.value = productoVacio();
+  errores.value = {};
+};
+
+const crear = async () => {
+
+  // Objetivo 3 (mejora anterior): no se envía porcentajeGanancia.
+  // El backend lo asigna automáticamente en 25% cuando el campo no llega.
+  await crearProducto({ nombre: producto.value.nombre.trim() });
+
+  toast.exito("Producto guardado correctamente.");
+};
+
+const actualizar = async () => {
+
+  // Se envía explícitamente el porcentaje de ganancia original para
+  // garantizar que se conserve tal cual, sin depender de que el
+  // backend lo tenga que "adivinar" si el campo llegara vacío.
+  await actualizarProducto(productoEnEdicion.value.id, {
+    nombre: producto.value.nombre.trim(),
+    porcentajeGanancia: productoEnEdicion.value.porcentajeGanancia
+  });
+
+  toast.exito("Producto actualizado correctamente.");
+};
+
 const guardarProducto = async () => {
 
   // Evita que múltiples clics disparen varias peticiones
@@ -237,15 +332,17 @@ const guardarProducto = async () => {
 
   try {
 
-    // Objetivo 3: ya no se envía porcentajeGanancia. El backend lo
-    // asigna automáticamente en 25% cuando el campo no llega.
-    await crearProducto({ nombre: producto.value.nombre.trim() });
+    if (modoEdicion.value) {
+      await actualizar();
+    } else {
+      await crear();
+    }
 
-    // El formulario solo se limpia si la operación fue exitosa
+    // El formulario solo se limpia (y vuelve a modo creación) si la
+    // operación fue exitosa
+    productoEnEdicion.value = null;
     producto.value = productoVacio();
     errores.value = {};
-
-    toast.exito("Producto guardado correctamente.");
 
     await cargarProductos();
 
@@ -254,7 +351,12 @@ const guardarProducto = async () => {
     console.error("Error al guardar el producto:", error);
 
     toast.error(
-      obtenerMensajeError(error, "No se pudo guardar el producto.")
+      obtenerMensajeError(
+        error,
+        modoEdicion.value
+          ? "No se pudo actualizar el producto."
+          : "No se pudo guardar el producto."
+      )
     );
 
   } finally {

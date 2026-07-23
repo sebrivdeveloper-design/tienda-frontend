@@ -11,3 +11,8 @@ export const crearProducto = async (producto) => {
     const response = await axios.post(API_URL, producto);
     return response.data;
 };
+
+export const actualizarProducto = async (id, producto) => {
+    const response = await axios.put(`${API_URL}/${id}`, producto);
+    return response.data;
+};

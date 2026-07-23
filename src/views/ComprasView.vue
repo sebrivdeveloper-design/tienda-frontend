@@ -16,32 +16,19 @@
 
         <div>
 
-          <select
-            v-model="compra.productoId"
-            :disabled="guardando"
-            class="border p-3 rounded w-full disabled:bg-gray-100 disabled:cursor-not-allowed"
-            :class="errores.productoId ? 'border-red-500' : ''"
-          >
+  <ProductAutocomplete
+    v-model="compra.productoId"
+    :productos="productos"
+    :disabled="guardando"
+    :error="!!errores.productoId"
+    placeholder="Buscar producto..."
+  />
 
-            <option disabled value="">
-              Selecciona un producto
-            </option>
+  <p v-if="errores.productoId" class="text-red-500 text-sm mt-1">
+    {{ errores.productoId }}
+  </p>
 
-            <option
-              v-for="producto in productos"
-              :key="producto.id"
-              :value="producto.id"
-            >
-              {{ producto.nombre }}
-            </option>
-
-          </select>
-
-          <p v-if="errores.productoId" class="text-red-500 text-sm mt-1">
-            {{ errores.productoId }}
-          </p>
-
-        </div>
+</div>
 
         <div>
 
@@ -194,6 +181,8 @@ import {
   onMounted,
   computed
 } from "vue";
+
+import ProductAutocomplete from "../components/ProductAutocomplete.vue";
 
 import {
   formatearMoneda
