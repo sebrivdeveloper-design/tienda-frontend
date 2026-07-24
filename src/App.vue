@@ -21,7 +21,7 @@
 
       </div>
 
-      <nav class="flex flex-col gap-2 flex-1">
+      <nav class="flex flex-col gap-2">
 
         <router-link
           to="/"
@@ -65,8 +65,7 @@
           Balance
         </router-link>
 
-      </nav>
-      <div class="border-t border-gray-700 pt-4 mt-4">
+      <div class="border-t border-gray-700 pt-4 mt-4"></div>
 
         <p v-if="usuario" class="text-sm text-gray-300 mb-3 truncate">
           Conectado como
@@ -81,7 +80,7 @@
           Cerrar sesión
         </button>
 
-      </div>
+      </nav>
 
     </aside>
 
