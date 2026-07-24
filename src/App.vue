@@ -1,6 +1,11 @@
 <template>
+  <div v-if="esRutaPublica" class="min-h-screen">
+    <router-view />
+    <ToastContainer />
+  </div>
 
-  <div class="min-h-screen flex">
+  <div v-else class="min-h-screen flex">
+  
 
     <aside class="w-64 bg-gray-900 text-white p-5 flex flex-col">
 
@@ -16,7 +21,7 @@
 
       </div>
 
-      <nav class="flex flex-col gap-2">
+      <nav class="flex flex-col gap-2 flex-1">
 
         <router-link
           to="/"
@@ -61,6 +66,22 @@
         </router-link>
 
       </nav>
+      <div class="border-t border-gray-700 pt-4 mt-4">
+
+        <p v-if="usuario" class="text-sm text-gray-300 mb-3 truncate">
+          Conectado como
+          <span class="font-semibold text-white">{{ usuario.nombre }}</span>
+        </p>
+
+        <button
+          type="button"
+          @click="manejarCerrarSesion"
+          class="w-full text-left p-3 rounded hover:bg-gray-700 transition text-red-300 hover:text-red-200"
+        >
+          Cerrar sesión
+        </button>
+
+      </div>
 
     </aside>
 
@@ -73,11 +94,27 @@
     <ToastContainer />
 
   </div>
+  
 
 </template>
 
 <script setup>
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
+
+import { useAuth } from "./composables/useAuth";
 
 import ToastContainer from "./components/ToastContainer.vue";
+
+const route = useRoute();
+const router = useRouter();
+const { usuario, cerrarSesion } = useAuth();
+
+const esRutaPublica = computed(() => route.meta.publico === true);
+
+const manejarCerrarSesion = () => {
+  cerrarSesion();
+  router.push({ name: "login" });
+};
 
 </script>
